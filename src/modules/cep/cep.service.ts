@@ -1,6 +1,4 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import type { Cache } from 'cache-manager';
 import {
   AllProvidersUnavailableException,
   CepNotFoundException,
@@ -12,31 +10,32 @@ import { RESOLUTION_STRATEGY } from './strategies/resolution-strategy.tokens';
 import type { ICepResolutionStrategy } from './strategies/interfaces/cep-resolution.strategy.interface';
 import { PROVIDER_ORDER_STRATEGY } from './strategies/provider-order.tokens';
 import type { IProviderOrderStrategy } from './strategies/interfaces/provider-order.strategy.interface';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class CepService {
   private readonly logger = new Logger(CepService.name);
 
   constructor(
+    private readonly redisService: RedisService,
     @Inject(CEP_PROVIDERS) private readonly providers: ICepProvider[],
     @Inject(RESOLUTION_STRATEGY)
     private readonly resolutionStrategy: ICepResolutionStrategy,
     @Inject(PROVIDER_ORDER_STRATEGY)
     private readonly providerOrderStrategy: IProviderOrderStrategy,
-    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   async findByCep(cep: string): Promise<CepResult> {
     const cacheKey = `cep:${cep}`;
 
-    const cached = await this.cache.get<CepResult>(cacheKey);
+    const cached = await this.redisService.get<CepResult>(cacheKey);
     if (cached) {
       this.logger.log(`CEP ${cep} resolvido via cache`);
       return cached;
     }
 
     const result = await this.resolveWithFallback(cep);
-    await this.cache.set(cacheKey, result);
+    await this.redisService.set(cacheKey, result, 60 * 60 * 24 * 30 * 1000);
 
     return result;
   }

@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { CacheModule } from '@nestjs/cache-manager';
-import { redisStore } from 'cache-manager-redis-yet';
 import { CepService } from './cep.service';
 import { CepController } from './cep.controller';
 import { HttpClientService } from 'src/common/http/http-client.service';
@@ -12,22 +10,10 @@ import { TimeoutResolutionStrategy } from './strategies/timeout-resolution.strat
 import { RESOLUTION_STRATEGY } from './strategies/resolution-strategy.tokens';
 import { RoundRobinProviderOrderStrategy } from './strategies/round-robin-provider-order.strategy';
 import { PROVIDER_ORDER_STRATEGY } from './strategies/provider-order.tokens';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
-  imports: [
-    HttpModule,
-    CacheModule.registerAsync({
-      useFactory: async () => ({
-        store: await redisStore({
-          socket: {
-            host: process.env.REDIS_HOST ?? 'localhost',
-            port: Number(process.env.REDIS_PORT ?? 6379),
-          },
-          ttl: 60 * 60 * 24 * 30 * 1000,
-        }),
-      }),
-    }),
-  ],
+  imports: [HttpModule, RedisModule],
   controllers: [CepController],
   providers: [
     ViaCepProvider,
